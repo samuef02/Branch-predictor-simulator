@@ -43,5 +43,7 @@ export type {
 } from "../domain/predictors/LocalCorrelatedPredictor";
 export { RiscVParser } from "../domain/source/RiscVParser";
 export type { Branch, Instruction, RiscVProgram } from "../domain/source/RiscVProgram";
+export { CTranslator } from "../domain/source/CTranslator";
+export type { BranchOutcomeHint, CTranslationDiagnostic, CTranslationResult } from "../domain/source/CTranslator";
 export { SourceSyncPolicy } from "../domain/source/SourceBundle";
 export type { SourceBundle, SourceSyncState } from "../domain/source/SourceBundle";

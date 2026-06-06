@@ -1,9 +1,11 @@
 import { create } from "zustand";
 import {
+  CTranslator,
   PredictorFactory,
   SimulationEngine,
   StatsCalculator,
   TableProjector,
+  type CTranslationDiagnostic,
   type DynamicTableView,
   type SessionMode,
   type StatisticsSet,
@@ -17,11 +19,15 @@ interface SimulationStoreState {
   readonly selectedTemplateId: string;
   readonly selectedVariantId: string;
   readonly mode: SessionMode;
+  readonly cSource: string;
+  readonly riscVSource: string;
+  readonly translationDiagnostics: readonly CTranslationDiagnostic[];
   readonly currentStep: number;
   readonly trace: readonly TraceStep[];
   readonly tableView: DynamicTableView;
   readonly statistics?: StatisticsSet;
   readonly selectTemplate: (templateId: string) => void;
+  readonly updateCSource: (source: string) => void;
   readonly setMode: (mode: SessionMode) => void;
   readonly step: () => void;
   readonly runAll: () => void;
@@ -31,15 +37,25 @@ interface SimulationStoreState {
 
 const tableProjector = new TableProjector();
 const predictorFactory = new PredictorFactory();
+const cTranslator = new CTranslator();
 
 const initialTemplate = officialTemplates[0];
 const initialVariant = initialTemplate.variants[0];
+const initialCSource = `#define N 10
+int a = 10;
+int i = 0;
+for (; i < N; i++) a -= i;
+printf(a);`;
+const initialTranslation = cTranslator.translate(initialCSource);
 
 export const useSimulationStore = create<SimulationStoreState>((set, get) => ({
   templates: officialTemplates,
   selectedTemplateId: initialTemplate.id,
   selectedVariantId: initialVariant.id,
   mode: "exam",
+  cSource: initialCSource,
+  riscVSource: initialTranslation.riscVSource,
+  translationDiagnostics: initialTranslation.diagnostics,
   currentStep: 0,
   trace: [],
   tableView: project([], "exam"),
@@ -52,6 +68,14 @@ export const useSimulationStore = create<SimulationStoreState>((set, get) => ({
       trace: [],
       statistics: undefined,
       tableView: project([], get().mode)
+    });
+  },
+  updateCSource: (source) => {
+    const translation = translateSafely(source);
+    set({
+      cSource: source,
+      riscVSource: translation.riscVSource,
+      translationDiagnostics: translation.diagnostics
     });
   },
   setMode: (mode) => {
@@ -133,4 +157,21 @@ function runTrace(
 
 function project(trace: readonly TraceStep[], mode: SessionMode) {
   return tableProjector.project(trace, { mode, language: "es", revealSolution: mode === "solution" });
+}
+
+function translateSafely(source: string) {
+  try {
+    return cTranslator.translate(source);
+  } catch (error) {
+    return {
+      riscVSource: "",
+      diagnostics: [
+        {
+          severity: "warning" as const,
+          message: error instanceof Error ? error.message : "C source could not be translated."
+        }
+      ],
+      branchOutcomeHints: []
+    };
+  }
 }

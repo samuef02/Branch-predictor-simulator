@@ -26,4 +26,17 @@ describe("DashboardShell", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Solucion" }));
     expect(screen.getAllByRole("row")[1].children[4]).not.toHaveTextContent("");
   });
+
+  it("regenerates didactic RISC-V when the C source changes", () => {
+    render(<App />);
+
+    expect(screen.getByDisplayValue(/bge x7, x5, end/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getAllByRole("textbox")[0], {
+      target: { value: "int a = 10; int i = 0; for (; i < 3; i++) a += i;" }
+    });
+
+    expect(screen.getByDisplayValue(/addi x7, x0, 3/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue(/add x5, x5, x6/)).toBeInTheDocument();
+  });
 });

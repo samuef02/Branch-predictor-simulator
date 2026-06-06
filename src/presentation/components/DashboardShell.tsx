@@ -2,6 +2,7 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
 import {
+  Alert,
   AppBar,
   Box,
   Button,
@@ -25,10 +26,14 @@ export function DashboardShell() {
     templates,
     selectedTemplateId,
     mode,
+    cSource,
+    riscVSource,
+    translationDiagnostics,
     currentStep,
     tableView,
     statistics,
     selectTemplate,
+    updateCSource,
     setMode,
     step,
     runAll,
@@ -73,9 +78,18 @@ export function DashboardShell() {
               gap: 2
             }}
           >
-            <EditorPanel title="C didactico" value={"for (int i = 0; i < 10; i++) {\n  a += i;\n}"} />
-            <EditorPanel title="RISC-V" value={"0x38 bge r4, r0, else # B1\n0x44 bne r7, r8, loop # B2"} />
+            <EditorPanel title="C didactico" value={cSource} onChange={updateCSource} />
+            <EditorPanel title="RISC-V" value={riscVSource} readOnly />
           </Box>
+          {translationDiagnostics.length > 0 ? (
+            <Stack spacing={1}>
+              {translationDiagnostics.map((diagnostic) => (
+                <Alert key={`${diagnostic.severity}-${diagnostic.message}`} severity={diagnostic.severity}>
+                  {diagnostic.message}
+                </Alert>
+              ))}
+            </Stack>
+          ) : undefined}
 
           <Paper variant="outlined" sx={{ overflow: "hidden" }}>
             <Stack direction="row" spacing={1} sx={{ p: 1.5, alignItems: "center" }}>
@@ -191,7 +205,17 @@ export function DashboardShell() {
   );
 }
 
-function EditorPanel({ title, value }: { readonly title: string; readonly value: string }) {
+function EditorPanel({
+  title,
+  value,
+  readOnly = false,
+  onChange
+}: {
+  readonly title: string;
+  readonly value: string;
+  readonly readOnly?: boolean;
+  readonly onChange?: (value: string) => void;
+}) {
   return (
     <Paper variant="outlined" sx={{ overflow: "hidden" }}>
       <Box sx={{ px: 1.5, py: 1, bgcolor: "#eef3f3", borderBottom: 1, borderColor: "divider" }}>
@@ -204,8 +228,9 @@ function EditorPanel({ title, value }: { readonly title: string; readonly value:
         fullWidth
         minRows={8}
         value={value}
+        onChange={(event) => onChange?.(event.target.value)}
         InputProps={{
-          readOnly: true,
+          readOnly,
           sx: {
             fontFamily: '"Roboto Mono", Consolas, monospace',
             fontSize: "0.875rem",
