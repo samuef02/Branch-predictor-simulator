@@ -26,9 +26,15 @@ export function DashboardShell() {
   const {
     templates,
     selectedTemplateId,
+    activeTitle,
+    activeStatement,
+    activeVariantTitle,
+    activeBranchSequence,
     mode,
     cSource,
     riscVSource,
+    sessionYamlInput,
+    sessionImportError,
     translationDiagnostics,
     currentStep,
     tableView,
@@ -37,6 +43,8 @@ export function DashboardShell() {
     statistics,
     selectTemplate,
     updateCSource,
+    updateSessionYamlInput,
+    importSessionYaml,
     setMode,
     step,
     runAll,
@@ -45,9 +53,6 @@ export function DashboardShell() {
     exportTable,
     exportSessionYaml
   } = useSimulationStore();
-  const selectedTemplate = templates.find((template) => template.id === selectedTemplateId) ?? templates[0];
-  const selectedVariant = selectedTemplate.variants[0];
-
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
       <AppBar position="static" color="inherit" elevation={0}>
@@ -117,7 +122,7 @@ export function DashboardShell() {
                 YAML
               </Button>
               <Typography sx={{ ml: "auto" }} variant="body2">
-                Paso {currentStep} / {selectedTemplate.branchSequence.executions.length}
+                Paso {currentStep} / {activeBranchSequence.executions.length}
               </Typography>
             </Stack>
             <Divider />
@@ -187,6 +192,27 @@ export function DashboardShell() {
               }}
             />
           ) : undefined}
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Stack spacing={1.5}>
+              <Typography component="h2" variant="h2">
+                Importar sesion
+              </Typography>
+              <TextField
+                label="YAML de sesion"
+                multiline
+                minRows={5}
+                value={sessionYamlInput}
+                onChange={(event) => updateSessionYamlInput(event.target.value)}
+                InputProps={{
+                  sx: { fontFamily: '"Roboto Mono", Consolas, monospace', fontSize: "0.8125rem" }
+                }}
+              />
+              {sessionImportError ? <Alert severity="warning">{sessionImportError}</Alert> : undefined}
+              <Button variant="outlined" onClick={importSessionYaml}>
+                Importar
+              </Button>
+            </Stack>
+          </Paper>
         </Stack>
 
         <Paper
@@ -212,11 +238,12 @@ export function DashboardShell() {
                 ))}
               </Select>
             </FormControl>
-            <TextField label="Variante" size="small" value={selectedVariant.title} InputProps={{ readOnly: true }} />
+            <TextField label="Sesion" size="small" value={activeTitle} InputProps={{ readOnly: true }} />
+            <TextField label="Variante" size="small" value={activeVariantTitle} InputProps={{ readOnly: true }} />
             <TextField
               label="Enunciado"
               size="small"
-              value={selectedTemplate.statement}
+              value={activeStatement}
               multiline
               minRows={3}
               InputProps={{ readOnly: true }}

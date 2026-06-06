@@ -6,12 +6,13 @@ import {
   StatsCalculator,
   TableProjector,
   type CTranslationDiagnostic,
+  type BranchSequence,
   type DynamicTableView,
   type SessionMode,
   type StatisticsSet,
   type TraceStep
 } from "../../application";
-import type { OfficialTemplate, OfficialTemplateVariant } from "../../infrastructure/templates/OfficialTemplate";
+import type { OfficialTemplate } from "../../infrastructure/templates/OfficialTemplate";
 import { officialTemplates } from "../../infrastructure/templates/officialTemplates";
 import { CsvTableExporter, MarkdownTableExporter } from "../../infrastructure/export/TableExporters";
 import { SessionYamlMapper } from "../../infrastructure/persistence/SessionYamlMapper";
@@ -22,9 +23,16 @@ interface SimulationStoreState {
   readonly templates: readonly OfficialTemplate[];
   readonly selectedTemplateId: string;
   readonly selectedVariantId: string;
+  readonly activeTitle: string;
+  readonly activeStatement: string;
+  readonly activeVariantTitle: string;
+  readonly activeBranchSequence: BranchSequence;
+  readonly activePredictorConfig: unknown;
   readonly mode: SessionMode;
   readonly cSource: string;
   readonly riscVSource: string;
+  readonly sessionYamlInput: string;
+  readonly sessionImportError?: string;
   readonly translationDiagnostics: readonly CTranslationDiagnostic[];
   readonly currentStep: number;
   readonly trace: readonly TraceStep[];
@@ -34,6 +42,8 @@ interface SimulationStoreState {
   readonly statistics?: StatisticsSet;
   readonly selectTemplate: (templateId: string) => void;
   readonly updateCSource: (source: string) => void;
+  readonly updateSessionYamlInput: (source: string) => void;
+  readonly importSessionYaml: () => void;
   readonly setMode: (mode: SessionMode) => void;
   readonly step: () => void;
   readonly runAll: () => void;
@@ -65,9 +75,15 @@ export const useSimulationStore = create<SimulationStoreState>((set, get) => ({
   templates: officialTemplates,
   selectedTemplateId: initialTemplate.id,
   selectedVariantId: initialVariant.id,
+  activeTitle: initialTemplate.title,
+  activeStatement: initialTemplate.statement,
+  activeVariantTitle: initialVariant.title,
+  activeBranchSequence: initialTemplate.branchSequence,
+  activePredictorConfig: initialVariant.predictorConfig,
   mode: "exam",
   cSource: initialCSource,
   riscVSource: initialTranslation.riscVSource,
+  sessionYamlInput: "",
   translationDiagnostics: initialTranslation.diagnostics,
   currentStep: 0,
   trace: [],
@@ -77,11 +93,17 @@ export const useSimulationStore = create<SimulationStoreState>((set, get) => ({
     set({
       selectedTemplateId: template.id,
       selectedVariantId: template.variants[0].id,
+      activeTitle: template.title,
+      activeStatement: template.statement,
+      activeVariantTitle: template.variants[0].title,
+      activeBranchSequence: template.branchSequence,
+      activePredictorConfig: template.variants[0].predictorConfig,
       currentStep: 0,
       trace: [],
       statistics: undefined,
       exportedTable: undefined,
       exportedSessionYaml: undefined,
+      sessionImportError: undefined,
       tableView: project([], get().mode)
     });
   },
@@ -94,12 +116,42 @@ export const useSimulationStore = create<SimulationStoreState>((set, get) => ({
       exportedSessionYaml: undefined
     });
   },
+  updateSessionYamlInput: (source) => {
+    set({ sessionYamlInput: source, sessionImportError: undefined });
+  },
+  importSessionYaml: () => {
+    try {
+      const session = sessionYamlMapper.fromYaml(get().sessionYamlInput);
+      set({
+        activeTitle: session.title,
+        activeStatement: "Sesion importada desde YAML.",
+        activeVariantTitle: "Configuracion importada",
+        activeBranchSequence: session.branchSequence,
+        activePredictorConfig: session.predictorConfig,
+        mode: session.mode,
+        cSource: session.source.cSource ?? "",
+        riscVSource: session.source.riscVSource,
+        translationDiagnostics: [],
+        currentStep: 0,
+        trace: [],
+        statistics: undefined,
+        exportedTable: undefined,
+        exportedSessionYaml: undefined,
+        sessionImportError: undefined,
+        tableView: project([], session.mode)
+      });
+    } catch (error) {
+      set({
+        sessionImportError: error instanceof Error ? error.message : "No se pudo importar la sesion YAML."
+      });
+    }
+  },
   setMode: (mode) => {
     set({ mode, tableView: project(get().trace, mode) });
   },
   step: () => {
-    const { template, variant } = getSelected(get());
-    const trace = runTrace(template, variant, get().currentStep + 1);
+    const state = get();
+    const trace = runTrace(state.activeBranchSequence, state.activePredictorConfig, state.currentStep + 1);
     set({
       currentStep: trace.length,
       trace,
@@ -110,8 +162,8 @@ export const useSimulationStore = create<SimulationStoreState>((set, get) => ({
     });
   },
   runAll: () => {
-    const { template, variant } = getSelected(get());
-    const trace = runTrace(template, variant);
+    const state = get();
+    const trace = runTrace(state.activeBranchSequence, state.activePredictorConfig);
     set({
       currentStep: trace.length,
       trace,
@@ -132,12 +184,12 @@ export const useSimulationStore = create<SimulationStoreState>((set, get) => ({
     });
   },
   calculateStats: () => {
-    const { variant } = getSelected(get());
-    const predictor = predictorFactory.create(variant.predictorConfig);
+    const predictorConfig = get().activePredictorConfig;
+    const predictor = predictorFactory.create(predictorConfig);
     const memoryUsage =
       predictor && "memoryUsage" in predictor
         ? (predictor.memoryUsage as (config: unknown) => { bits: number; entries: number })(
-            variant.predictorConfig
+            predictorConfig
           )
         : undefined;
     set({
@@ -149,52 +201,41 @@ export const useSimulationStore = create<SimulationStoreState>((set, get) => ({
   },
   exportSessionYaml: () => {
     const state = get();
-    const { template, variant } = getSelected(state);
     set({
       exportedSessionYaml: sessionYamlMapper.toYaml({
         version: 1,
-        title: template.title,
+        title: state.activeTitle,
         language: "es",
         mode: state.mode,
-        predictorConfig: variant.predictorConfig,
+        predictorConfig: state.activePredictorConfig,
         source: {
           cSource: state.cSource,
           riscVSource: state.riscVSource,
           syncState: "synced"
         },
-        branchSequence: template.branchSequence
+        branchSequence: state.activeBranchSequence
       })
     });
   }
 }));
 
-function getSelected(state: SimulationStoreState) {
-  const template =
-    state.templates.find((candidate) => candidate.id === state.selectedTemplateId) ?? initialTemplate;
-  const variant =
-    template.variants.find((candidate) => candidate.id === state.selectedVariantId) ??
-    template.variants[0];
-
-  return { template, variant };
-}
-
 function runTrace(
-  template: OfficialTemplate,
-  variant: OfficialTemplateVariant,
-  limit = template.branchSequence.executions.length
+  branchSequence: BranchSequence,
+  predictorConfig: unknown,
+  limit = branchSequence.executions.length
 ) {
-  const predictor = predictorFactory.create(variant.predictorConfig);
+  const predictor = predictorFactory.create(predictorConfig);
   if (!predictor) {
     return [];
   }
 
   const limitedSequence = {
-    executions: template.branchSequence.executions.slice(0, limit),
+    executions: branchSequence.executions.slice(0, limit),
     loops: []
   };
   const engine = new SimulationEngine();
   return engine.runToCompletion(
-    engine.initialise(limitedSequence, predictor as never, variant.predictorConfig as never),
+    engine.initialise(limitedSequence, predictor as never, predictorConfig as never),
     predictor as never
   ).trace;
 }

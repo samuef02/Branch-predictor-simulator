@@ -8,7 +8,18 @@ describe("DashboardShell", () => {
   beforeEach(() => {
     useSimulationStore.getState().selectTemplate("exercise-1-one-level-2bit");
     useSimulationStore.getState().reset();
-    useSimulationStore.setState({ mode: "exam", exportedTable: undefined });
+    useSimulationStore.getState().updateCSource(`#define N 10
+int a = 10;
+int i = 0;
+for (; i < N; i++) a -= i;
+printf(a);`);
+    useSimulationStore.setState({
+      mode: "exam",
+      exportedTable: undefined,
+      exportedSessionYaml: undefined,
+      sessionYamlInput: "",
+      sessionImportError: undefined
+    });
   });
 
   it("runs a template step and calculates statistics from the domain trace", () => {
@@ -37,7 +48,7 @@ describe("DashboardShell", () => {
   it("regenerates didactic RISC-V when the C source changes", () => {
     render(<App />);
 
-    expect(screen.getByDisplayValue(/bge x7, x5, end/)).toBeInTheDocument();
+    expect((screen.getAllByRole("textbox")[1] as HTMLTextAreaElement).value).toContain("bge x7, x5, end");
 
     fireEvent.change(screen.getAllByRole("textbox")[0], {
       target: { value: "int a = 10; int i = 0; for (; i < 3; i++) a += i;" }
@@ -72,5 +83,27 @@ describe("DashboardShell", () => {
     expect(yamlArea.value).toContain("branchSequence:");
     expect(yamlArea.value).not.toContain("statistics:");
     expect(yamlArea.value).not.toContain("tableView:");
+  });
+
+  it("imports a YAML session and restores its editable sources", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "YAML" }));
+    const exportedYaml = (screen.getByLabelText("Sesion YAML") as HTMLTextAreaElement).value;
+
+    fireEvent.change(screen.getAllByRole("textbox")[0], {
+      target: { value: "int a = 10; int i = 0; for (; i < 3; i++) a += i;" }
+    });
+    expect((screen.getAllByRole("textbox")[1] as HTMLTextAreaElement).value).toContain("addi x7, x0, 3");
+
+    fireEvent.change(screen.getByLabelText("YAML de sesion"), {
+      target: { value: exportedYaml }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Importar" }));
+
+    const textboxes = screen.getAllByRole("textbox") as HTMLTextAreaElement[];
+    expect(textboxes[0].value).toContain("#define N 10");
+    expect(textboxes[1].value).toContain("bge x7, x5, end");
+    expect(screen.getByText("Paso 0 / 6")).toBeInTheDocument();
   });
 });
