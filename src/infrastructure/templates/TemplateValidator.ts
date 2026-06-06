@@ -1,12 +1,8 @@
-import { GselectPredictor } from "../../domain/predictors/GselectPredictor";
-import { GsharePredictor } from "../../domain/predictors/GsharePredictor";
-import { GlobalCorrelatedPredictor } from "../../domain/predictors/GlobalCorrelatedPredictor";
-import { LocalCorrelatedPredictor } from "../../domain/predictors/LocalCorrelatedPredictor";
-import { OneLevelPredictor } from "../../domain/predictors/OneLevelPredictor";
-import { TwoLevelPredictor } from "../../domain/predictors/TwoLevelPredictor";
+import { PredictorFactory } from "../../domain/predictors/PredictorFactory";
 import { SimulationEngine } from "../../domain/simulation/SimulationEngine";
 import { StatsCalculator } from "../../domain/stats/StatsCalculator";
 import type { OfficialTemplate, OfficialTemplateVariant } from "./OfficialTemplate";
+import { officialTemplateSchema } from "./OfficialTemplateSchema";
 
 export interface TemplateValidationReport {
   readonly templateId: string;
@@ -16,9 +12,16 @@ export interface TemplateValidationReport {
 }
 
 export class TemplateValidator {
+  constructor(private readonly predictorFactory = new PredictorFactory()) {}
+
   validate(template: OfficialTemplate): TemplateValidationReport {
     const errors: string[] = [];
     const warnings: string[] = [];
+    const schemaResult = officialTemplateSchema.safeParse(template);
+
+    if (!schemaResult.success) {
+      errors.push(...schemaResult.error.issues.map((issue) => issue.message));
+    }
 
     if (template.exerciseNumber === 6) {
       errors.push("exercise 6 is excluded from v1 because it requires Tournament");
@@ -31,8 +34,9 @@ export class TemplateValidator {
     }
 
     for (const variant of template.variants) {
-      const variantWarnings = this.validateVariant(template, variant);
-      warnings.push(...variantWarnings);
+      const variantResult = this.validateVariant(template, variant);
+      errors.push(...variantResult.errors);
+      warnings.push(...variantResult.warnings);
     }
 
     return {
@@ -43,10 +47,13 @@ export class TemplateValidator {
     };
   }
 
-  private validateVariant(template: OfficialTemplate, variant: OfficialTemplateVariant): string[] {
-    const predictor = createPredictor(variant.predictorConfig);
+  private validateVariant(
+    template: OfficialTemplate,
+    variant: OfficialTemplateVariant
+  ): { errors: string[]; warnings: string[] } {
+    const predictor = this.predictorFactory.create(variant.predictorConfig);
     if (!predictor) {
-      return [`${variant.id}: predictor config is not executable yet`];
+      return { errors: [`${variant.id}: predictor config is not executable yet`], warnings: [] };
     }
 
     const engine = new SimulationEngine();
@@ -62,45 +69,33 @@ export class TemplateValidator {
         : undefined;
     const stats = new StatsCalculator().calculate(run.trace, memoryUsage);
     const expected = variant.expectedStatistics;
+    const errors: string[] = [];
     const warnings: string[] = [];
 
-    if (expected?.hits !== undefined && expected.hits !== stats.hits) {
-      warnings.push(`${variant.id}: expected ${expected.hits} hits, engine produced ${stats.hits}`);
+    if (expected.hits !== undefined && expected.hits !== stats.hits) {
+      this.addDiscrepancy(template, `${variant.id}: expected ${expected.hits} hits, engine produced ${stats.hits}`, errors, warnings);
     }
-    if (expected?.misses !== undefined && expected.misses !== stats.misses) {
-      warnings.push(
-        `${variant.id}: expected ${expected.misses} misses, engine produced ${stats.misses}`
-      );
+    if (expected.misses !== undefined && expected.misses !== stats.misses) {
+      this.addDiscrepancy(template, `${variant.id}: expected ${expected.misses} misses, engine produced ${stats.misses}`, errors, warnings);
     }
-    if (expected?.memoryBits !== undefined && expected.memoryBits !== stats.memoryBits) {
-      warnings.push(
-        `${variant.id}: expected ${expected.memoryBits} memory bits, engine produced ${stats.memoryBits}`
-      );
+    if (expected.memoryBits !== undefined && expected.memoryBits !== stats.memoryBits) {
+      this.addDiscrepancy(template, `${variant.id}: expected ${expected.memoryBits} memory bits, engine produced ${stats.memoryBits}`, errors, warnings);
     }
 
-    return warnings;
-  }
-}
-
-function createPredictor(config: unknown) {
-  if (!config || typeof config !== "object" || !("type" in config)) {
-    return undefined;
+    return { errors, warnings };
   }
 
-  switch ((config as { type: string }).type) {
-    case "one-level":
-      return new OneLevelPredictor();
-    case "two-level":
-      return new TwoLevelPredictor();
-    case "global-correlated":
-      return new GlobalCorrelatedPredictor();
-    case "gshare":
-      return new GsharePredictor();
-    case "gselect":
-      return new GselectPredictor();
-    case "local-correlated":
-      return new LocalCorrelatedPredictor();
-    default:
-      return undefined;
+  private addDiscrepancy(
+    template: OfficialTemplate,
+    message: string,
+    errors: string[],
+    warnings: string[]
+  ): void {
+    if (template.verificationStatus === "verified") {
+      errors.push(message);
+      return;
+    }
+
+    warnings.push(message);
   }
 }

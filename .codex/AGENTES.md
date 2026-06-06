@@ -19,7 +19,7 @@ Este archivo sirve como chuleta para lanzar subagentes en Codex cuando el trabaj
 | QA e2e | `worker` | flujos Playwright y capturas cuando exista UI ejecutable |
 | QA revisor | `explorer` | revision de capas, cobertura, riesgos y huecos frente a requisitos |
 | i18n | `worker` | `src/infrastructure/i18n/**`, catalogos ES/EN |
-| Arquitectura | `explorer` | riesgos, coherencia con requisitos y arquitectura |
+| Arquitecto revisor | `explorer` | riesgos de diseno tecnico amplio, coherencia con requisitos y arquitectura |
 
 ## Autoridad documental
 

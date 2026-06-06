@@ -23,4 +23,38 @@ describe("officialTemplates", () => {
     const exercise5 = officialTemplates.find((template) => template.exerciseNumber === 5);
     expect(exercise5?.variants[0].expectedStatistics).toMatchObject({ hits: 5, misses: 11 });
   });
+
+  it("treats verified template statistic mismatches as blocking errors", () => {
+    const verified = officialTemplates[0];
+    const report = new TemplateValidator().validate({
+      ...verified,
+      variants: [
+        {
+          ...verified.variants[0],
+          expectedStatistics: { ...verified.variants[0].expectedStatistics, hits: 99 }
+        }
+      ]
+    });
+
+    expect(report.valid).toBe(false);
+    expect(report.errors[0]).toContain("expected 99 hits");
+  });
+
+  it("keeps non-certified template discrepancies as warnings", () => {
+    const draft = officialTemplates.find((template) => template.verificationStatus === "draft");
+    expect(draft).toBeDefined();
+
+    const report = new TemplateValidator().validate({
+      ...draft!,
+      variants: [
+        {
+          ...draft!.variants[0],
+          expectedStatistics: { ...draft!.variants[0].expectedStatistics, hits: 99 }
+        }
+      ]
+    });
+
+    expect(report.valid).toBe(true);
+    expect(report.warnings[0]).toContain("expected 99 hits");
+  });
 });

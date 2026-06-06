@@ -160,6 +160,8 @@ Reglas de uso:
 - Antes de cambios grandes o dudosos se puede lanzar `Guardian documental` para validar coherencia sin editar archivos.
 - El `Guardian SOLID y patrones` trabaja junto al `Guardian documental`: puede proponer refactors, pero si una propuesta toca alcance, arquitectura documentada o politica QA, debe marcarla para revision documental antes de implementarla.
 - El `Guardian SOLID y patrones` no bloquea por preferencias esteticas de codigo; prioriza riesgos estructurales, acoplamiento, violaciones SOLID, patrones mal aplicados y refactors que reduzcan complejidad real.
+- El `QA revisor` manda sobre cobertura, gates, huecos de prueba y riesgos de verificacion.
+- El `Arquitecto revisor` manda sobre coherencia tecnica amplia, separacion de capas, contratos y encaje con la arquitectura documentada.
 - Cada `worker` debe recibir una zona de propiedad clara para evitar conflictos.
 - Ningun `worker` puede editar documentos de diseno o gobernanza.
 - Ningun agente debe revertir cambios de otros.

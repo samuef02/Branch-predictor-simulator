@@ -23,6 +23,8 @@ export type { DynamicTableView, Language, SessionMode } from "./projectors/Table
 export type { Outcome } from "../domain/shared/Outcome";
 export { OneLevelPredictor } from "../domain/predictors/OneLevelPredictor";
 export type { OneLevelConfig, OneLevelState } from "../domain/predictors/OneLevelPredictor";
+export { PredictorFactory } from "../domain/predictors/PredictorFactory";
+export type { ExecutablePredictor } from "../domain/predictors/PredictorFactory";
 export { TwoLevelPredictor } from "../domain/predictors/TwoLevelPredictor";
 export type { TwoLevelConfig, TwoLevelState } from "../domain/predictors/TwoLevelPredictor";
 export { GlobalCorrelatedPredictor } from "../domain/predictors/GlobalCorrelatedPredictor";
@@ -43,10 +45,3 @@ export { RiscVParser } from "../domain/source/RiscVParser";
 export type { Branch, Instruction, RiscVProgram } from "../domain/source/RiscVProgram";
 export { SourceSyncPolicy } from "../domain/source/SourceBundle";
 export type { SourceBundle, SourceSyncState } from "../domain/source/SourceBundle";
-export { officialTemplates } from "../infrastructure/templates/officialTemplates";
-export { TemplateValidator } from "../infrastructure/templates/TemplateValidator";
-export type {
-  ExpectedTemplateStatistics,
-  OfficialTemplate,
-  OfficialTemplateVariant
-} from "../infrastructure/templates/OfficialTemplate";
