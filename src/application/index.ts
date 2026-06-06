@@ -23,3 +23,19 @@ export type { DynamicTableView, Language, SessionMode } from "./projectors/Table
 export type { Outcome } from "../domain/shared/Outcome";
 export { OneLevelPredictor } from "../domain/predictors/OneLevelPredictor";
 export type { OneLevelConfig, OneLevelState } from "../domain/predictors/OneLevelPredictor";
+export { TwoLevelPredictor } from "../domain/predictors/TwoLevelPredictor";
+export type { TwoLevelConfig, TwoLevelState } from "../domain/predictors/TwoLevelPredictor";
+export { GlobalCorrelatedPredictor } from "../domain/predictors/GlobalCorrelatedPredictor";
+export type {
+  GlobalCorrelatedConfig,
+  GlobalCorrelatedState
+} from "../domain/predictors/GlobalCorrelatedPredictor";
+export { GsharePredictor } from "../domain/predictors/GsharePredictor";
+export type { GshareConfig, GshareState } from "../domain/predictors/GsharePredictor";
+export { GselectPredictor } from "../domain/predictors/GselectPredictor";
+export type { GselectConfig, GselectState } from "../domain/predictors/GselectPredictor";
+export { LocalCorrelatedPredictor } from "../domain/predictors/LocalCorrelatedPredictor";
+export type {
+  LocalCorrelatedConfig,
+  LocalCorrelatedState
+} from "../domain/predictors/LocalCorrelatedPredictor";

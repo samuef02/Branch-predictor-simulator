@@ -38,6 +38,7 @@ export interface AliasingEvent {
 export interface IndexCalculation {
   readonly policy: string;
   readonly pcBits?: string;
+  readonly historyBits?: string;
   readonly operation: string;
   readonly resultIndex: string;
 }
